@@ -1,0 +1,610 @@
+---
+title: "stat3355_finalProject"
+author: "Muhammad Zubair"
+date: "5/7/2022"
+output: pdf_document
+---
+
+# Libraries
+```{r}
+library(tidyr)
+library(readr)
+library(dplyr)
+library(stringr)
+library(ggplot2)
+library(ggcorrplot)
+library(ggdark)
+library(scales)
+library(car)
+library(MASS)
+library(DAAG)
+library(lubridate)
+```
+
+
+# Data Cleaning
+```{r}
+# Read in the data frame
+df <- read_csv("Metro_Interstate_Traffic_Volume.csv.gz")
+```
+
+## Data Cleaning - Date & Time
+```{r}
+# Separating the date_time into date and time column
+df$date <- sapply(strsplit(as.character(df$date_time)," "), "[", 1)
+df$date <- as.Date(df$date, format="%Y-%m-%d")
+df$time <- sapply(strsplit(as.character(df$date_time)," "), "[", 2)
+
+df$Date <- as.Date(df$date_time)
+df$Time <- format(as.POSIXct(df$date_time), format = "%H:%M:%S")
+
+df$TimeSec <- as.numeric(as.POSIXct(df$Time, format = "%H:%M:%S")) %% 86400
+
+summary(df$temp)
+df$temp[which(df$temp < 5)] <- NA
+summary(df$temp)
+
+hist(df$traffic_volume, main = "Histogram of Traffic Volume", xlab = "Traffic Volume")
+```
+
+## Data Cleaning - Holiday
+```{r}
+# Mark holiday as a logical value
+df$holiday <- ifelse(df$holiday == "None", "None", "Yes")
+
+# Table of holidays before cleaning
+
+table(df$holiday)
+
+# Now I can look at the data where holiday = yes, and make the whole day as yes
+# Pull the dates of each holiday
+df_holiday <- subset(df, holiday=='Yes')
+df_holiday <- subset(df, select = c(holiday, date))
+
+# Marking entire day as holiday, instead of only first hour
+
+# Holidays in 2013
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2012-10-08'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2012-11-12'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2012-11-22'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2012-12-25'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2013-01-01'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2013-02-18'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2013-05-27'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2013-07-04'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2013-09-02'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2013-10-14'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2013-11-11'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2013-11-28'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2013-12-25'] <- "Yes"
+
+# Holidays in 2014
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2014-01-01'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2014-01-20'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2014-02-17'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2014-05-26'] <- "Yes"
+
+# Holidays in 2015
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2015-07-03'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2015-08-27'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2015-09-07'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2015-10-12'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2015-11-11'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2015-11-26'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2015-12-25'] <- "Yes"
+
+# Holidays in 2016
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2016-01-01'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2016-02-15'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2016-05-30'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2016-07-04'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2016-08-25'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2016-09-05'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2016-10-10'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2016-11-11'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2016-11-24'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2016-12-26'] <- "Yes"
+
+# Holidays in 2017
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2017-01-02'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2017-01-16'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2017-02-20'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2017-05-29'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2017-07-04'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2017-08-24'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2017-09-04'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2017-10-09'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2017-11-10'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2017-11-23'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2017-12-25'] <- "Yes"
+
+# Holidays in 2018
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2018-01-01'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2018-01-15'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2018-02-19'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2018-05-28'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2018-07-04'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2018-08-23'] <- "Yes"
+df$holiday[format(df$date, '%Y-%m-%d') %in% '2018-09-03'] <- "Yes"
+
+# Checking to see if values were added
+table(df$holiday)
+
+# Making a copy of df for future data cleaning purposes
+df_holiday_cleaned <- data.frame(df)
+```
+
+## Data Cleaning - Weather frequency
+```{r}
+# Identify which types of weather occur the most
+df_max_occur <- df_holiday_cleaned %>% 
+    gather("key", "value", weather_description) %>%
+    group_by(date) %>% 
+    dplyr::summarise(max.occurence = names(which.max(table(value))))
+
+head(df_max_occur)
+
+# Merging the df of max occurrences with the original df
+df_max_occur$date <- as.Date(df_max_occur$date, format="%Y-%m-%d")
+df_clean <- full_join(df_holiday_cleaned, df_max_occur, 
+                       by = c("date" = "date"))
+```
+
+## Data Cleaning - Traffic volume intervals
+```{r}
+# Create intervals of traffic volume for easier comparison
+df_clean$traffic_interval_of_250 <- floor(df_clean$traffic_volume / 250)+1
+df_clean$traffic_interval_of_250 <- as.factor(df_clean$traffic_interval_of_250)
+```
+
+## Data Cleaning - Cleaned data frame
+```{r}
+df_clean$max.occurence <- as.factor(df_clean$max.occurence)
+df_clean$holiday <- as.factor(df_clean$holiday)
+df_clean$temp <- df_clean$temp - 273.15
+
+summary(df_clean)
+
+```
+
+
+
+# Data Visualization
+```{r}
+# Create a data frame for data visualizations
+df_visualization <- subset(df_clean, 
+                            select = -c(max.occurence, weather_description, date_time))
+df_visualization$holiday <- ifelse(df_visualization$holiday == "Yes", 1, 0)
+df_visualization$weather_main <- as.factor(df_visualization$weather_main)
+
+str(df_visualization)
+```
+
+
+
+## Visualization - Time series
+```{R}
+df_visualization$time <- as.POSIXct(df_visualization$time, format="%H:%M:%S")
+df_visualization$traffic_interval_of_250 <- as.integer(df_visualization$traffic_interval_of_250)
+```
+
+## doesn't work independently 
+## Visualization - Correlation matrix
+```{R}
+df_cor_mat <- subset(df_visualization, !is.na(temp),
+              select = -c(date, traffic_volume))
+
+df_cor_mat$rain_1h <- ifelse(df_cor_mat$rain_1h == 0, 0, 1)
+df_cor_mat$snow_1h <- ifelse(df_cor_mat$snow_1h == 0, 0, 1)
+df_cor_mat$time <- sapply(strsplit(as.character(df_cor_mat$time)," "), "[", 2)
+df_cor_mat$time <- sapply(strsplit(as.character(df_cor_mat$time),":"), "[", 1)
+df_cor_mat$time <- as.numeric(df_cor_mat$time)
+
+df_cor_mat <- df_cor_mat[sapply(df_cor_mat,is.numeric)]
+corr <- cor(df_cor_mat)
+ggcorrplot(corr, lab = TRUE, hc.order = TRUE, type = "lower", 
+          outline.color = "white",
+          colors = c("white", "lightblue", "blue")) + 
+theme(axis.text.x = element_text(angle = 90, hjust=1))
+```
+
+## Visualization - Histogram of Response
+```{r}
+ggplot(df_visualization, aes(x=time, y=traffic_interval_of_250))+
+  geom_bar(size=1.5, stat = "identity", fill="LIGHTBLUE") +
+  labs(x=NULL, y="Traffic volume", title = "Traffic Volume by Hour") + 
+  scale_x_datetime(breaks = date_breaks("2 hour"), 
+                    labels=date_format("%H:%M:%S"))+
+  theme(axis.text.x = element_text(angle = 45, hjust=1)) + 
+  theme(plot.title = element_text(hjust = 0.5)) 
+```
+
+## Visualization - Temperature
+```{r}
+ggplot(subset(df_clean, temp > -50), aes(x = temp, y = traffic_volume))+
+  geom_point(color = "lightblue", cex = 0.5)+
+  geom_smooth(method = lm, formula = y~ x, se = F, color = "blue")+
+  labs(x = "Temperature in Celsius", y = "Traffic Volume", title = "Temperature and Traffic Volume")
+
+# 
+# df_clean$timeGroup <- df_clean$time
+# df_clean$timeGroup <- sapply(strsplit(as.character(df_clean$time)," "), "[", 2)
+# df_clean$timeGroup <- sapply(strsplit(as.character(df_clean$time),":"), "[", 1)
+# as.numeric(df_clean$timeGroup)
+# df_clean$timeGroup <- with(df_clean,  ifelse(time >= 5 & time<=8, "earlymorning",
+#                             ifelse(time>8 & time<=11, "morning",
+#                             ifelse(time > 11 & time<=15, "afternoon" , 
+#                             ifelse(time > 15 & time<=20, "evening", "night")))))
+# table(df_clean$timeGroup)
+
+ggplot(subset(df_clean, temp > -50), aes(y = temp, x = time, color = traffic_volume))+
+  geom_jitter()+
+  labs(x = "Time", y = "Temperature", title = "Time, Temperature, and Traffic Volume")+
+  theme(axis.text.x = element_text(angle = 90))
+  
+
+```
+
+## Visualization - Hourly Rain
+```{r}
+ggplot(subset(df_clean, rain_1h < 10), aes(x = rain_1h, y = traffic_volume))+
+  geom_point(color = "lightblue", cex = 1)+
+  geom_smooth(method = lm, formula = y ~ x, se = F, color = "blue")+
+  labs(x = "Rain per hour in mm", y = "Traffic Volume", title = "Hourly Rain and Traffic Volume")
+
+```
+
+## Visualization - Hourly Snow
+```{r}
+ggplot(df_clean, aes(x = snow_1h, y = traffic_volume))+
+  geom_point(color = "lightblue", cex = 1)+
+  geom_smooth(method = lm, formula = y ~ x, se = F, color = "blue")+
+  labs(x = "Snow per hour in mm", y = "Traffic Volume", title = "Hourly Snow and Traffic Volume")
+```
+
+## Visualization - Cloudcover
+```{r}
+ggplot(df_clean, aes(x = clouds_all, y = traffic_volume))+
+  geom_jitter(cex = 0.5, color = "lightblue")+
+  geom_smooth(method = lm, formula = y ~ x, se = F, color = "blue")+
+  labs(x = "Total cloudcover percentage", y = "Traffic Volume", title = "Cloudcover and Traffic Volume")
+
+```
+
+## Visualization - Holiday
+```{r}
+ggplot(df_clean, aes(x = holiday, y = traffic_volume, fill = holiday))+
+  geom_boxplot(color = "black")+
+  labs(x = "Holiday or Not", y = "Traffic Volume", title = "Traffic Volume on Holiday vs Regular Days")+
+  geom_hline(yintercept = 3380, linetype = "dashed", color = "black")
+```
+
+## Visualization - Weather Main
+```{r}
+ggplot(df_clean, aes(x = weather_main, y = traffic_volume, fill = weather_main))+
+  geom_boxplot(color = "black")+
+  labs(x = "Primary Weather Description", y = "Traffic Volume", 
+       title = "Overall Weather and Traffic Volume")+
+  geom_hline(yintercept = 3380, linetype = "dashed", color = "black")
+```
+
+# Primary Model
+
+## Primary - Time intervals
+```{r}
+df_time_factor <- df_visualization
+
+# df_time_factor$groups <- cut(df_time_factor$TimeSec,
+#                              breaks = c(-1, 28800, 39600, 54000, 68400, Inf),
+#                              labels = c("Night", "Early Morning", "Morning", "Afternoon", "Evening"))
+df_time_factor$groups <- cut(df_time_factor$TimeSec,
+                             breaks = c(-1, 21600, 43200, 64800, Inf),
+                             labels = c("Night", "Early", "Midday", "Afternoon"))
+# df_time_factor$groups <- cut(df_time_factor$TimeSec, 
+#                              breaks = c(-1, 28800, 54000, 68400, Inf),        
+#                              labels = c("Night", "Morning", "Afternoon", "Evening"))
+
+table(df_time_factor$groups)
+
+df_model <- subset(df_clean,
+                   select = -c(date_time, weather_description, date, Date,TimeSec, max.occurence, traffic_interval_of_250))
+df_model$timeInterval <- factor(df_time_factor$groups)
+
+summary(df_model)
+
+```
+
+## Primary - Linear model with all regressors
+```{r}
+fit1 <- lm(data = df_model, traffic_volume~. -time - Time)
+summary(fit1)
+
+```
+
+# Reduced model
+```{r}
+df_reduced1 <- subset(df_model,
+                      select = -c( rain_1h, snow_1h, clouds_all))
+fit2 <- lm(data = df_reduced1,
+           traffic_volume ~. -time - Time)
+fit2b <- lm(data = df_reduced1,
+            traffic_volume ~. -timeInterval)
+summary(fit2)
+```
+
+## Reduced - Time Intervals Box
+```{r}
+ggplot(data = df_reduced1, aes(x = timeInterval, y = traffic_volume))+
+  geom_jitter(cex = 0.2, color = "lightgray")+
+  geom_boxplot(fill = NA)+
+  geom_hline(yintercept = 3380, color = "deepskyblue3")+
+  labs(x = "Time of day", y = "Traffic Volume", title = "Boxplot of Traffic Volume by Time")
+  
+median(df_reduced1$traffic_volume[which(df_reduced1$timeInterval == "Early"
+                                        & !is.na(df_reduced1$timeInterval))])
+median(df_reduced1$traffic_volume[which(df_reduced1$timeInterval == "Midday")])
+median(df_reduced1$traffic_volume[which(df_reduced1$timeInterval == "Afternoon")])
+median(df_reduced1$traffic_volume[which(df_reduced1$timeInterval == "Night")])
+```
+
+## Reduced - ANOVA table comparison
+```{r}
+anova(fit2, fit1)
+```
+
+## Reduced - VIF table
+```{r}
+vif(fit2)
+
+```
+
+# Residual and Influence Analysis
+
+## Residuals - Standardized
+```{r}
+#Standardized residuals
+length(which(stdres(fit2) > 3))
+length(which(stdres(fit2) < -3))
+
+barplot(height = stdres(fit2),
+        main = "Standardized Residuals", xlab = "index", 
+        ylab = "Standardized Residual", ylim = c(-4, 4))
+abline(h = 3, col = "lightblue")
+abline(h = -3, col = "lightblue")
+```
+
+## Residuals - Studentized
+```{r}
+#Studentized residuals
+length(which(studres(fit2) > 3))
+length(which(studres(fit2) < -3))
+
+barplot(height = studres(fit2),
+        main = "Studentized Residuals", xlab = "index",
+        ylab = "Studentized Residual", ylim = c(-4, 4))
+abline(h = 3, col = "lightblue")
+abline(h = -3, col = "lightblue")
+```
+
+## Residuals - R Student
+```{r}
+#R student residuals
+cor.qt <- qt(0.05/(2 * 48204), 48176, lower.tail = F)
+cor.qt
+length(which(rstudent(fit2) > cor.qt))
+length(which(rstudent(fit2) < -cor.qt))
+
+barplot(height = rstudent(fit2),
+        main = "R Student Residuals", xlab = "index",
+        ylab = "R Student Residual", ylim = c(-6, 6))
+abline(h=cor.qt, col = "lightblue", lwd=2)
+abline(h=-cor.qt, col = "lightblue", lwd=2)
+```
+
+## Residuals - Residuals vs fitted, histogram, QQ
+```{r}
+residualPlot(fit2b, type = "rstudent", quadratic=F, col = "lightblue",
+             main = "Residuals vs Fitted Values Pre-Transformation")
+
+hist(studres(fit2), breaks = 25, freq=F, 
+     col = "lightblue", 
+     main = "Histogram of Residuals Pre-Transformation",
+     xlab = "Studentized Residuals")
+
+qqPlot(fit2, col = "grey", col.lines = "cornflowerblue",
+       ylab = "Studentized Residuals",
+       main = "Quantile Comparison Pre-Transformation")
+```
+
+## Residuals - Summary
+```{r}
+df_ResPre <- df_reduced1[which(stdres(fit2) > 3 |
+                                     stdres(fit2) < -3 |
+                                     studres(fit2) > 3 |
+                                     studres(fit2) < -3 |
+                                     rstudent(fit2) > cor.qt |
+                                     rstudent(fit2) < -cor.qt), ]
+```
+
+## Residuals - box cox
+```{r}
+df_positive <- df_reduced1
+df_positive$traffic_volume <- (df_positive$traffic_volume + 0.01)
+fit3 <- lm(data = df_positive, traffic_volume~. )
+fit3b <- lm(data = df_positive, traffic_volume~. -time - Time)
+
+boxcox.traffic <- boxCox(fit3)
+boxcox.trafficb <- boxCox(fit3b)
+boxcox.traffic$x[which.max(boxcox.traffic$y)]
+
+```
+
+# Transformation
+```{r}
+# Square root transformation on the response
+df_transformed <- data.frame(traffic_volume = (df_reduced1[,4])^(0.5),
+                             holiday = df_reduced1[,1],
+                             temp = df_reduced1[,2],
+                             weather_main = df_reduced1[,3],
+                             time = df_reduced1[,5], 
+                             Time = df_reduced1[,6],
+                             timeInterval = df_reduced1[,7])
+summary(df_transformed)
+
+fit4 <- lm(data = df_transformed, traffic_volume~. -time -Time)
+fit4b <- lm(data = df_transformed, traffic_volume~. -timeInterval)
+
+summary(fit4)
+```
+
+# New Residual Analysis Post-Transformation
+
+## New Residuals - Residual plot comparison
+```{r}
+residualPlot(fit2b, type = "rstudent", quadratic=F, col = "lightblue",
+             main = "Before",
+             ylim = c(-5, 5))
+
+residualPlot(fit4b, type = "rstudent", quadratic=F, col = "lightblue",
+             main = "After",
+             ylim = c(-5, 5))
+```
+
+## New Residuals - Histogram comparison
+```{r}
+hist(studres(fit2), breaks = 25, freq=F, 
+     col = "lightblue", 
+     main = "Before",
+     xlab = "Studentized Residuals",
+     xlim = c(-4, 4))
+hist(studres(fit4), breaks = 25, freq=F, 
+     col = "lightblue", 
+     main = "After",
+     xlab = "Studentized Residuals",
+     xlim = c(-4, 4))
+```
+
+## New Residuals - QQ plot comparison
+```{r}
+qqPlot(fit2, col = "grey", col.lines = "cornflowerblue",
+       ylab = "Studentized Residuals",
+       main = "Before",
+       ylim = c(-4, 4))
+qqPlot(fit4, col = "grey", col.lines = "cornflowerblue",
+       ylab = "Studentized Residuals",
+       main = "After",
+       ylim = c(-4, 4))
+```
+
+## New Residuals - Standardized
+```{r}
+#Standardized residuals
+
+barplot(height = stdres(fit4),
+        main = "Standardized Residuals", xlab = "index", 
+        ylab = "Standardized Residual", ylim = c(-4, 4))
+abline(h = 3, col = "lightblue")
+abline(h = -3, col = "lightblue")
+```
+
+## New Residuals - Studentized
+```{r}
+#Studentized residuals
+barplot(height = studres(fit4),
+        main = "Studentized Residuals", xlab = "index",
+        ylab = "Studentized Residual", ylim = c(-4, 4))
+abline(h = 3, col = "lightblue")
+abline(h = -3, col = "lightblue")
+```
+
+## New Residuals - R Student
+```{r}
+#R student residuals
+cor.qt <- qt(0.05/(2 * 48204), 48176, lower.tail = F)
+
+barplot(height = rstudent(fit4),
+        main = "R Student Residuals", xlab = "index",
+        ylab = "R Student Residual", ylim = c(-6, 6))
+abline(h=cor.qt, col = "lightblue", lwd=2)
+abline(h=-cor.qt, col = "lightblue", lwd=2)
+```
+
+## New Residuals - Summary
+```{r}
+# Standardized
+length(which(stdres(fit4) > 3))
+length(which(stdres(fit4) < -3))
+
+length(which(stdres(fit4) > 3.2))
+length(which(stdres(fit4) < -3.2))
+
+# Studentized
+length(which(studres(fit4) > 3))
+length(which(studres(fit4) < -3))
+
+length(which(studres(fit4) > 3.2))
+length(which(studres(fit4) < -3.2))
+
+# R student
+length(which(rstudent(fit4) > cor.qt))
+length(which(rstudent(fit4) < -cor.qt))
+
+# Total residuals
+df_ResPost <- df_transformed[which(stdres(fit4) > 3 |
+                                     stdres(fit4) < -3 |
+                                     studres(fit4) > 3 |
+                                     studres(fit4) < -3 |
+                                     rstudent(fit4) > cor.qt |
+                                     rstudent(fit4) < -cor.qt), ]
+
+```
+
+# Influence Analysis
+
+## Influence - Measures
+```{r}
+inf <- influence.measures(fit4)
+summary(inf)
+influenceIndexPlot(fit4,vars=c("Cook"), 
+                   main = "Cook's Distance")
+influenceIndexPlot(fit4,vars=c("Hat"), 
+                   main = "Hat Values")
+
+```
+
+## Influence - DFBETAS
+```{r}
+dfbetasPlots(fit4, intercept = F,
+             terms = "holiday",
+             main = "Holiday",
+             col = "deepskyblue3")
+
+dfbetasPlots(fit4, intercept = F,
+             terms = "temp",
+             col = "deepskyblue3")
+
+dfbetasPlots(fit4, intercept = F,
+             terms = "timeInterval",
+             col = "deepskyblue3")
+
+dfbetasPlots(fit4, intercept = F,
+             terms = "weather_main",
+             col = "deepskyblue3",
+             layout = c(2, 2),
+             ask = F,
+             xlab = NA)
+```
+
+# Final Model
+
+```{r}
+summary(fit4)
+```
+
+
+
+
+
+
+
+
